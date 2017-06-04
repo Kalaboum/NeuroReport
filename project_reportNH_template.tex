@@ -2,6 +2,7 @@
 \usepackage{amsmath}
 \usepackage{float}
 \usepackage[utf8]{inputenc}
+\usepackage{graphicx}
 \acmVolume{1}
 \acmNumber{1}
 \acmYear{2016}
@@ -92,8 +93,9 @@ r_i - l_j < (1-w_m)M + (1-w_{m+1})M\\
 \end{split}
 \end{equation}
 
-Thus, our problem becomes almost a quadratic programming instance (because of the integer binary variables it is not), that we can solve using Lagrange multipliers. %TODO cite Frank, Marguerite and Wolfe, Philip -> bibtex
-We can bypass this issue by assigning first the binary variables and then solving the quadratic programming problem. Complexity explodes since there is $O(n^2)$ variable, so $O(2^{n^2})$ assignments possible. In practice, for Tide, n would rarely exceed 20. Brute force may be a viable solution. If computation time is slow, assigning randomly those variable and solving the quadratic program may be a better alternative. \\
+Thus, our problem becomes almost a quadratic programming instance (because of the integer binary variables it is not).
+We can bypass this issue by assigning first the binary variables and then solving the quadratic programming problem using Lagrange multipliers.  %TODO cite Frank, Marguerite and Wolfe, Philip -> bibtex
+Complexity explodes since there is $O(n^2)$ variable, so $O(2^{n^2})$ assignments possible. In practice, for Tide, n would rarely exceed 20. Brute force may be a viable solution. If computation time is slow, assigning randomly those variable and solving the quadratic program may be a better alternative. \\
 At this point, we are guaranteed to have a satisfying occupancy of the space. But we still have the issue that window can have close to 0 width. There are two possible workaround : \\
 -Add constraints to enforce a min size for the windows. \\%trade of, computationnally expensive bigger constraint
 -Add a penalizing term to the objective function. \\
@@ -114,10 +116,32 @@ Since we convinced ourselves that an optimal solution may be hard to compute, we
 Any node in this tree is a rectangle composed of two children which are contiguous rectangles. A leaf that contains a window is called ``full" and a leaf that does not contain a window is ``empty".  \\
 %TODO add scheme for horizontal or vertical cuts
 
-The insert procedure is easy to implement. We try inserting recursively in the tree, searching for an empty leaf big enough. If such insert was unsucessful, we create a new rootNode containing the new window and the previous tree as children. The position of the new window is chosen so the tree is closest to the objective ratio. 
+The insert procedure is easy to implement. We try inserting recursively in the tree, searching for an empty leaf big enough. If such insert was unsucessful, we create a new rootNode containing the new window and the previous tree as children. The position of the new window is chosen so the tree is closest to the objective ratio. (see Figure \ref{fig:SimpleInsert}, \ref{fig:Insertion} and \ref{fig:InsertionFin} for an example)
 
+\begin{figure}
+  \includegraphics[width=\linewidth]{Images/1erDessin.png}
+  \caption{An example of insertion of 3 windows into an available space of ratio 1}
+  \label{fig:SimpleInsert}
+\end{figure}
 
-%TODO insert scheme
+\begin{figure}
+  \includegraphics[width=\linewidth]{Images/Insertion.png}
+  \caption{This time the empty leaf is too small, we choose emplacement to the right because of the ratio = 1}
+  \label{fig:Insertion}
+\end{figure}
+
+\begin{figure}
+  \includegraphics[width=\linewidth]{Images/InsertionFin.png}
+  \caption{The structure of the tree has been changed}
+  \label{fig:InsertionFin}
+\end{figure}
+
+\begin{figure}
+  \includegraphics[width=\linewidth]{Images/Treestructure.png}
+  \caption{comparison between the tree structure of Figure \ref{fig:SimpleInsert} (top) and Figure \ref{fig:InsertionFin} (bottom)}
+  \label{fig:TreeStructure}
+\end{figure}
+
 Once the inserting part is done, our tree (or rootNode since it is equivalent) may be way bigger than our available space. Or, to the contrary, very small. This does not matter since we resize our tree to fit in the available space. This constraining phase is also easy to implement recursively on our tree, since each node is a rectangle whose space is the sum of his children. When leaves are constrained in a rectangle, they take the biggest space possible without changing their original ratio and are then centered. 
 
 \subsubsection{Initialization choices}
@@ -143,7 +167,7 @@ Now we have come to the order issue. While sorting by ratio may often be a good 
 
 A natural way to deal with those cases is to randomize the order of the windows and run the algorithm multiple times. We keep the result for which the occupied space is maximal. Note that brute force requires $O(n!)$ runs and is thus not a viable solution. A specific study of the number of iterations needed in expectation to come close to the optimal result has not been established. It has been noticed that this method improved the results compared to the original order. The main issue is that the output is not determined by the input, which can be destabilizing for the user. If the user does not like this, it is always possible to fix the seed of the random function. The same input will always produce the same output, which can be an issue on specific inputs. However there is no reason that someone would ``cook up" especially bad inputs, and thus having a known pseudo-random function instead of a unfathomable is acceptable.  
 
-
+\subsection{Performance Analysis}
 
 \begin{acks}
  
