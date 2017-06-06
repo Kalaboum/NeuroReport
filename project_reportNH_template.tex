@@ -32,7 +32,7 @@ Neurocomputing semester project}
 %\end{abstract}
 
 \section{Introduction}
-Tide is a user-interface project for running large display on multi-screen. At Campus Biotech, in the Blue Brain Project premises, there are three display wall. Two of them are composed of 4x3 screens of ....pixels. The other one is 3x3. Tide is distributed and runs on any number of machines. It is the only open-source software for touch screen which scales to any size of display. At BBP it is mainly used for scientific collaboration since it allows for more interactive presentations  than powerpoints. The display wall allows  high-resolution content, and it enables pdf and movie support, it has a desktop streaming feature. With the impeding arrival of an open-deck, 
+Tide is a user-interface project for running large display on multi-screen. At Campus Biotech, in the Blue Brain Project (BBP) premises, there are three display wall. Two of them are composed of 4x3 screens of ....pixels. The other one is 3x3. Tide is distributed and runs on any number of machines. It is the only open-source software for touch screen which scales to any size of display. At BBP it is mainly used for scientific collaboration since it allows for more interactive presentations  than powerpoints. The display wall allows  high-resolution content, it enables pdf and movie support, and has a desktop streaming feature. With the impeding arrival of an open-deck, 
 %TODO ask raphael the specificities of display walls
 a 3D stereo feature has been added to improve immersiveness. \\
 Tide runs three different display mode:\\
@@ -40,13 +40,13 @@ Tide runs three different display mode:\\
 -Fullscreen: where the selected image will occupy most of the space available while keeping its ratio; \\
 -Focused: where  all the selected images are displayed on one line according to the order on default mode, projecting them to the foreground. The image are then resized to keep their original ratio;\\
 The presented work focuses on the former. 
-The previous algorithm was unsatisfying because when more than a few windows were displayed, the constraint on the ratio forced a small height on the windows, thus making the content difficult to see, while most of the space was unused. \\
+The previous algorithm was unsatisfying when more than a few windows were displayed, because most of the space was unused. The constraint on the ratio forced a small height on the windows, thus making the content difficult to see.  \\
 This papers explores various algorithms with different approaches to address the automatic layout problem.\\
 
 
 \section{Modelizing the problem and related work}
 
-As previously stated, the ancient algorithm was unsatisfying. This leads to the following: what makes an algorithm good for this task\,? The answer is not trivial as multiple criterions must be taken into account. Some of those criterions  may not be easy to describe mathematically. However there are three constant rules : the original ratio must be preserved, all the windows should fit on the screen and windows must not overlap. Those constraints are easy to satisfy and formulate.\\
+As previously stated, the ancient algorithm was unsatisfying, because of the visibility of the content and the usage of available space. We must find all characteristics  an algorithm should have for this task to be satisfying. The answer is not trivial as multiple criterions must be taken into account. Some of those criterions  may not be easy to describe mathematically. However there are three constant rules : the original ratio must be preserved, all the windows should fit on the screen and windows must not overlap. Those constraints are easy to satisfy and formulate.\\
 The problem itself is not clearly defined. We would like the result to be ``pleasing to the human eye" or close to what a human may do manually. But the human evaluation of the visual aspect is subjective and hard to expain to a computer. We avoid complications by splitting the visual aspect into subcriterions:\\
 %TODO see if bullets are better
 -The windows are balanced or centered \\
@@ -65,45 +65,55 @@ We denote $l_i$, $r_i$, $t_i$, $b_i$, being respectively the coordinates of\,: t
 
 \begin{equation}
 \begin{split}
-\forall  i \in  \{1, ... ,n\}  :\\
-l_i \geq 0 \wedge t_i \geq 0 \\
- r_i < W \\
- b_i  < H  \\
-l_i < r_i \wedge t_i < b_i
+&\forall  i \in  \{1, ... ,n\}  :\\
+&l_i \geq 0 \wedge t_i \geq 0 \\
+&r_i < W \\
+&b_i  < H  \\
+&l_i < r_i \wedge t_i < b_i
 \end{split}
 \end{equation}
 
 
 \begin{equation}
 \begin{split}
-\forall i, j \in \{1,..., n\}, i < j : \\
-(t_i > b_j) \lor (b_i < t_j) \lor (l_i > r_j) \lor (r_i < l_j)
+&\forall i, j \in \{1,..., n\}, i < j : \\
+&(t_i > b_j) \lor (b_i < t_j) \lor (l_i > r_j) \lor (r_i < l_j)
 \end{split}
 \label{eq:logical}
 \end{equation}
 
 \subsubsection{Tuning an objective function}
-A constraint solver can easily find a feasible solution. However this solution may not be satisfying since all the windows may be too small or not centered. What we precisely want is not clear, however we can turn this problem into a quadratic optimization problem with a few tricks. We set the objective function $f_0$  to $\sum_{i=1}^{n}{(r_i-l_i)(b_i-t_i)}$ and we try to maximize it.  To get rid of the logical constraint in equation (\ref{eq:logical}), we use the method from \href{https://ocw.mit.edu/courses/sloan-school-of-management/15-053-optimization-methods-in-management-science-spring-2013/lecture-notes/MIT15_053S13_lec11.pdf}{this excellent course of the MIT}.\\ 
+A constraint solver can easily find a feasible solution. However this solution may not be satisfying since all the windows may be too small or not centered. What we precisely want is not clear, however we can turn this problem into a quadratic optimization problem with a few tricks. We set the objective function  to :\\
+\begin{equation}
+f_0(n) = max \sum_{i=1}^{n}{(r_i-l_i)(b_i-t_i)}
+\label{eq:objective}
+\end{equation}
+To get rid of the logical constraint in equation (\ref{eq:logical}), we use the method from \href{https://ocw.mit.edu/courses/sloan-school-of-management/15-053-optimization-methods-in-management-science-spring-2013/lecture-notes/MIT15_053S13_lec11.pdf}{this excellent course of the MIT}.\\ 
 We introduce a constant $M$, big enough such that every constraint is satisfied if we put it to the right-hand side of an equality. Then we add binary variables $w_m$, and add to the right handside of the equation either $(1-w_m) M$ or  $w_m(M)$. Thus inequalities in (\ref{eq:logical}) become\,: 
 
 \begin{equation}
 \begin{split}
-\forall i, j \in \{1,..., n\}, i < j : \\
-b_j - t_i < w_mM + w_{m+1}M \\
- b_i - t_j < (1-w_m)M + w_{m+1}M \\
-r_j - l_i < w_mM + (1-w_{m+1})M \\
-r_i - l_j < (1-w_m)M + (1-w_{m+1})M\\
+&\forall i, j \in \{1,..., n\}, i < j : \\
+&b_j - t_i < w_mM + w_{m+1}M \\
+&b_i - t_j < (1-w_m)M + w_{m+1}M \\
+&r_j - l_i < w_mM + (1-w_{m+1})M \\
+&r_i - l_j < (1-w_m)M + (1-w_{m+1})M\\
 \end{split}
 \end{equation}
 
-Thus, our problem becomes almost a quadratic programming instance (because of the integer binary variables it is not).
+Thus, our problem almost becomes a quadratic programming instance (because of the integer binary variables it is not).
 We can bypass this issue by first assigning the binary variables and then solving the quadratic programming problem using Lagrange multipliers.  %TODO cite Frank, Marguerite and Wolfe, Philip -> bibtex
-Complexity explodes since there are $O(n^2)$ variables, so $O(2^{n^2})$ assignments possible. In practice, for Tide, n would rarely exceed 20. Brute force may be a viable solution. If computation time is slow, assigning randomly those variable and solving the quadratic program may be a better alternative. \\
+%TODO reminder of big O notation ?
+Complexity explodes since there are $O(n^2)$ variables, so $O(2^{n^2})$ assignments possible. In practice, for Tide, n would rarely exceed 20. Hence brute force may be a viable solution. If computation is slow, assigning randomly those variable and solving the quadratic program may be a better alternative. \\
 At this point, we are guaranteed to have a satisfying occupancy of the space. But we still have the issue that windows can have close to 0 width. There are two possible workaround : \\
 -Add constraints to enforce a min size for the windows; \\%trade of, computationnally expensive bigger constraint
 -Add a penalizing term to the objective function. \\
-Depending on the min size constraint, alternative 1 may lead to an empty feasible set. Running the algorithm for different values of min size will lead to a satisfiable solution, with an increase in computational cost. \\
-The difficulty in alternative 2 is to find a function which penalizes smallest and biggest windows. We suggest to add $\lambda \sum_{i = 1}^{n}{w_i + h_i}$ to the function $f_0$ where $w_i = r_i - l_i$ and $h_i = t_i - b_i$ and $\lambda$ is a real that must be tuned appropriately. \\
+Depending on the min size constraint, the first alternative  may lead to an empty feasible set. Running the algorithm for different values of min size will lead to a satisfiable solution, with an increase in computational cost. \\
+The difficulty in the second alternative is to find a function which penalizes smallest and biggest windows. We suggest to add to the objective function (\ref{eq:objective}) the following term :
+\begin{equation}
+\lambda \sum_{i = 1}^{n}{w_i + h_i}
+\end{equation}
+ Where $w_i = r_i - l_i$ and $h_i = t_i - b_i$ and $\lambda$ is a real that must be tuned appropriately. \\
 Our algorithm has improved but is still unsatisfying since there is no guarantee of equilibrium. %TODO think of an example
 Similar input conditions may lead to very different results. Implementation of this algorithm has been put aside to the profit of more heuristic ones, allowing for a greater control over the output.
 
@@ -116,14 +126,14 @@ Similar input conditions may lead to very different results. Implementation of t
 
 Since we convinced ourselves that an optimal solution may be hard to compute, we thought about finding an algorithm which gave good results in most of the cases without any ``hard" guarantees. The idea is to construct a rectangle containing all the windows with ratio as close as possible to the available space. We start with an empty tree and add all windows one by one. Once there is no remaining window, we resize the tree so it fits in the available space. For this algorithm to perform well, we need to keep a rootNode whose rectangle is similar to the available space (meaning their ratio width/height is close). 
 
-Any node in this tree is a rectangle composed of two children which are contiguous rectangles. A leaf that contains a window is called ``full" and a leaf that does not contain a window is ``empty".  \\
+Any node in this tree is a rectangle composed of two children which are contiguous. A leaf that contains a window is called ``full" and a leaf that does not contain a window is ``empty".  \\
 %TODO add scheme for horizontal or vertical cuts
 
 The insert procedure is easy to implement. We try inserting recursively in the tree, searching for an empty leaf big enough. If such insert is unsucessful, we create a new rootNode containing the new window and the previous tree as children. The position of the new window is chosen so the tree is closest to the objective ratio. (see Figure \ref{fig:SimpleInsert}, \ref{fig:Insertion} and \ref{fig:InsertionFin} for an example)
 
 \begin{figure}
   \includegraphics[width=\linewidth]{Images/1erDessin.png}
-  \caption{An example of insertion of 3 windows into an available space of ratio 1}
+  \caption{Insertion of 3 windows into an available space of ratio 1}
   \label{fig:SimpleInsert}
 \end{figure}
 
@@ -149,19 +159,19 @@ Once the inserting part is done, our tree (or rootNode since it is equivalent) m
 
 \subsubsection{Initialization choices}
 
-The attentive reader has noted two unspoken initialization processes which affect the execution of the algorithm. We did not discuss the initial size of the windows and the order in which the algorithm inserts them. \\
-In Default mode of Tide, windows have a default size when they are opened (depending on their content). Choice has been made to use this size as initial size of the windows. By the way the algorithm works, the relative size of two windows on the focused mode is the same than in Default mode. This is a benefit in most of the cases, where default mode already has a balance between the windows. But it leads to degenerate cases when a window occupies the majority of the screen in Default mode. Such cases can be detected and an initial resizing of the window may occur. An other benefit resulting from this initialization is the control over the algorithm brought to the user. He can decide on Default mode to increase the size of a window and this will impact its size in focused mode. At the moment it is the only control the user has on the display of this algorithm. In the previous focus mode, control offered to the user laid in the order (left from right) of the windows. \\
+The attentive reader may have noted two unspoken initialization processes which affect the execution of the algorithm. We did not discuss the initial size of the windows and the order in which the algorithm inserts them. \\
+In Default mode of Tide, windows have a default size when they are opened (depending on their content). Choice has been made to use this size as initial size of the windows. By the way the algorithm works, the relative size of two windows on the focused mode is the same than in Default mode. This is a benefit in most of the cases, where windows in Default mode are already balanced. But it leads to degenerate cases when a window occupies the majority of the screen in Default mode. Such cases can be detected and an initial resizing of the window may occur. An other benefit resulting from this initialization is the control over the algorithm brought to the user. He can decide on Default mode to increase the size of a window and this will impact its size in focused mode. At the moment it is the only control the user has on the display of this algorithm. In the previous focus mode, control offered to the user laid in the order (left from right) of the windows. \\
 This is not the case anymore with this algorithm since the order of the windows depends on the maximum of their relative width or relative height compared to the available space. Those ``bigger" windows may indeed prove troublesome if they arrive last since they are more susceptible to change the ratio of the tree. However, in some cases this ordering is far from the best one. We will see a way to deal with this issue.
 
-\subsubsection{Weaknesses in the algorithm}
+\subsubsection{Issues and workarounds in the algorithm}
 
 One of the main weakness in the algorithm lies in the representation of empty spaces. A window may fail to insert into two contiguous empty spaces because they lie far from each other in the binary tree representation. \\
 %TODO show an example
-This issue is the most troublesome for this algorithm as it is intrinsically connected with the binary tree representation which is a key feature for the resizing part. We could imagine a way to detect close empty spaces and considering them as one big empty space, making some insertion to rebalance the tree. This feature has not been implemented yet, because it would lead to fundamental changes in the algorithm. Those unconnected problems were first addressed by changing the underlying data structure from a binary tree to a grid of cuts where each window is defined by four cuts, two by two parallel. The insertion part led to better results before the resizing, however the resizing part was far from trivial and may be as difficult as the initial problem.
+This issue is the most troublesome for this algorithm as it is intrinsically connected with the binary tree representation which is a key feature for the resizing part. We could imagine a way to detect close empty spaces and considering them as one big empty space, making some insertion to rebalance the tree. This feature has not been implemented yet because it would lead to fundamental changes in the algorithm. Those unconnected problems were first addressed by changing the underlying data structure from a binary tree to a grid of cuts where each window is defined by four cuts, two by two parallel. The insertion part led to better results before the resizing, however the resizing part was far from trivial and may be as difficult as the initial problem.
 %TODO show a scheme of cuts
 
 
-Another flaw is the lack of flexibility when we insert a new window, as we can see in the Figure \ref{fig:Equalbuggy} where 4 images of the same size are selected. The last image is then inserted to the left instead of having a nice 2 by 2 square, due to floating points error. 
+Another flaw is the lack of flexibility when we insert a new window, as we can see in the Figure \ref{fig:Equalbuggy} where four images of the same size are selected. The last image is then inserted to the left instead of having a nice two by two square, due to floating points error. 
 \begin{figure*}
   \includegraphics[width=\textwidth]{Images/4-equalbuggyCropped.png}
   \caption{A 2 by 2 display here would be nicer}
@@ -169,7 +179,7 @@ Another flaw is the lack of flexibility when we insert a new window, as we can s
 \end{figure*}
 \\ 
 A workaround is to add a tolerance factor when inserting a new window. If the window height and width is no more than 1 + $\alpha$ times the empty space, the window is still added to the empty space, shrinking it if need be. There is a tradeoff for the value of $\alpha$. If it is zero, we lack flexibility as in Figure \ref{fig:Equalbuggy}.
-If it is high, the relative ratio between windows is not respected anymore. Current value of $\alpha$ is 0.3, it has been determined empirically. See Figure \ref{fig:Equalright} for an example with tolerance factor.
+If it is high, the relative ratio between windows is not respected anymore. Empirically deduced value of $\alpha$ is 0.3. See Figure \ref{fig:Equalright} for an example with tolerance factor.
 
 \begin{figure*}
   \includegraphics[width=\textwidth]{Images/4-equalToleranceCropped.png}
@@ -177,15 +187,19 @@ If it is high, the relative ratio between windows is not respected anymore. Curr
   \label{fig:Equalright}
 \end{figure*}
 
-Now we have come to the order issue. While sorting by ratio may often be a good idea, there are always corner cases in which it may be the worst. In particular when a window is big and its ratio is far from the others.
+Now we have come to the order issue. While sorting by ratio may often be a good idea, there are always corner cases in which it may be the worst order possible. Such cases arise when a window is big and its ratio is far from the others.
 %TODO show an example
 
 A natural way to deal with those cases is to randomize the order of the windows and run the algorithm multiple times. We keep the result for which the occupied space is maximal. Note that brute force requires $O(n!)$ runs and thus is not a viable solution. A specific study of the number of iterations needed in expectation to come close to the optimal result has not been established. It has been noticed that this method improved the results compared to the original order. The main issue is that the output is not determined by the input, which can be destabilizing for the user. If the user does not like this, it is always possible to fix the seed of the random function. The same input will always produce the same output, which can be an issue on specific inputs. However there is no reason that someone would ``cook up" especially bad inputs, and thus having a known pseudo-random function instead of an unfathomable one is acceptable.  
 
-
-
 \subsection{Performance Analysis}
 
+
+\subsection{Conclusion and Future work}
+
+While the improvement randomization brought on the special cases was substantial, the solution found were not perfect. The heuristic placement in insertion phase leads to a sparse rectangle. The resizing is then unable to balance the windows in a nice way. Considering each subtree as the same optimization problem with another available space during insertion phase might fix some of those problems. Thus, each node would have a different available space which will not be equal to only the sum of his two childs. According less importance to the rootNode and allowing each node to modify the structure of the tree would add the flexibilty we lack.
+
+On a different perspective, now that the automatic layout performs well on most of the cases, focus should be put on user-interface features. We would like to give to the user the possibility to move or swap some windows in focus mode without changing the result of the other windows. 
 \begin{acks}
  
 \end{acks}
