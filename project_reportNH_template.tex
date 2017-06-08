@@ -37,33 +37,45 @@ Tide is a user-interface project for running large display on multi-screen. At C
 %TODO ask raphael the specificities of display walls
 a 3D stereo feature has been added to improve immersiveness. \\
 Tide runs three different display mode:\\
--Default: where you can select windows, resize them and move them around \\
--Fullscreen: where the selected image will occupy most of the space available while keeping its ratio; \\
--Focused: where  all the selected images are displayed on one line according to the order on default mode, projecting them to the foreground. The image are then resized to keep their original ratio;\\
+-Default: where you can select windows, resize them and move them around; \\
+-Fullscreen: where the selected image will occupy most of the space available while keeping its aspect ratio; \\
+-Focused: where  all the selected images are displayed on one line according to the order on default mode, projecting them to the foreground. The image are then resized to keep their original aspect ratio.\\
 The presented work focuses on the later. 
 The previous algorithm was unsatisfying when more than a few windows were displayed, because most of the space was unused. The single line display forced a small height on the windows, thus making the content difficult to see.  \\
-This papers explores various algorithms with different approaches to address the automatic layout problem.\\
+This papers explores two different approaches to address the automatic layout problem.\\
 
 
 \section{Modelizing the problem and related work}
 
-As previously stated, the ancient algorithm was unsatisfying, because of the visibility of the content and the usage of available space. We must find all characteristics  an algorithm should have for this task to be satisfying. The answer is not trivial as multiple criterions must be taken into account. Some of those criteria  may not be easy to describe mathematically. However there are three constant rules : the original ratio must be preserved, all the windows should fit on the screen and windows must not overlap. Those constraints are easy to satisfy and formulate.\\
+\subsection{Different perspectives on the subject}
+Layout problems are often NP-hard, algorithms used to address this kind of problem use heuristic (Balakrishnan et al. 2003 \cite{balakrishnan2003facopt}. Luders et al. (1995) \cite{luders1995approach} used combinatorial optimization, which differ from the methods in the present paper. \\
+A first part will show how to consider the problem as multiple quadratic programming instances. SImilar optimization problems can be found in different domains\,: architecture (Michalek et al. 2002 \cite{michalek2002architectural}), economics (Koopmans and Beckmann 57 \cite{Koopmans57}) and microengineering (Liebmann et al. 2003 \cite{liebmann2003layout}). \\
+The second part will focus on an heuristic algorithm implemented to resolve this task.
+
+\subsection{Requirements}
+As previously stated, the previous algorithm was unsatisfying, because of the visibility of the content and the usage of available space. We must find all characteristics  an algorithm should have for this task to be satisfying. The answer is not trivial as multiple criterions must be taken into account. Some of those criteria  may not be easy to describe mathematically. However there are three constant rules : the original ratio must be preserved, all the windows should fit on the screen and windows must not overlap. Those constraints are easy to satisfy and formulate.\\
 The problem itself is not clearly defined. We would like the result to be ``pleasing to the human eye" or close to what a human may do manually. But the human evaluation of the visual aspect is subjective and hard to expain to a computer. We avoid complications by splitting the visual aspect into subcriteria:\\
 %TODO see if bullets are better
--The windows are regularly spaced \\
+-Windows keep their aspect ratio\\
+-Windows fit in the available space\\
 -Windows do not overlap \\
+-The windows are regularly spaced \\
 -Unused space is minimal\\
 -Variance in area is minimal\\
 Multiple ways to tackle this problem will be discussed, each one having pros and cons. Most of them will lack analysis of result since implementation time was limited. 
 
-\subsection{As a classical optimization problem}
+\subsection{As a global optimization problem}
 
 \subsubsection{Finding a feasible solution}
-We denote $l_i$, $r_i$, $t_i$, $b_i$, being respectively the coordinates of\,: the left edge, the right edge, the top edge and the bottom edge of the $i^{th}$ window (x axis grows right, y axis grows down, origin point(0,0) is set at the topleft corner of the screen ). Those are our output variables. Our input values are\,:  $W$ and $H$, the width and the height of the available space, n the number of windows and $R_i$ the ratio of the $i_{th}$ window. Then we can write the former constraints as\,:
+
+We denote $l_i$, $r_i$, $t_i$, $b_i$, being respectively the coordinates of\,: the left edge, the right edge, the top edge and the bottom edge of the $i^{th}$ window (x axis grows right, y axis grows down, origin point(0,0) is set at the topleft corner of the screen ). Those are our output variables. Our input values are\,:  $W$ and $H$, the width and the height of the available space, n the number of windows and $R_i$ the ratio of the $i_{th}$ window. For the sake of readability we introduce the following notation $w_i = r_i - l_i$  and  $h_i = t_i - b_i$ which are the width and the height of window i. Then we can write most the former constraints as\,:
 
 \begin{equation}
-\dfrac{r_i - l_i}{b_i - t_i} = R_i \quad \forall  i \in  \{1, ... n\}
+\dfrac{w_i}{h_i} = R_i \quad \forall  i \in  \{1, ... n\}
+\label{eq:aspect}
 \end{equation}
+
+Those equalities capture the constraint on the aspect ratio of each window.
 
 \begin{equation}
 \begin{split}
@@ -71,10 +83,12 @@ We denote $l_i$, $r_i$, $t_i$, $b_i$, being respectively the coordinates of\,: t
 &l_i \geq 0 \wedge t_i \geq 0 \\
 &r_i < W \\
 &b_i  < H  \\
-&l_i < r_i \wedge t_i < b_i
+&w_i > 0\wedge h_i > 0
 \end{split}
+\label{eq:fit}
 \end{equation}
 
+Those inequalities ensure that the windows fit in the available space.
 
 \begin{equation}
 \begin{split}
@@ -84,51 +98,81 @@ We denote $l_i$, $r_i$, $t_i$, $b_i$, being respectively the coordinates of\,: t
 \label{eq:logical}
 \end{equation}
 
-\subsubsection{Tuning an objective function}
-A constraint solver can easily find a feasible solution. However this solution may not be satisfying since all the windows may be too small or not centered. What we precisely want is not clear, however we can turn this problem into a quadratic optimization problem with a few tricks. We set the objective function  to :\\
+This last equation is a bit more tricky. Here we ensure that for each pair of windows (i,j) : j is either ,under, above, to the right or to the left of i. That is exactly the definition of ``not overlapping". Note that we use $i < j$ because ``not overlapping" is a symmetrical relation. E.g. if window 2 is to the left of window 5, then window 5 is to the right of window 2. Thus there is no need to enforce that constraint. \\
+A constraint solver can easily find a solution to this problem.
+
+\subsubsection{Turning the problem to a quadratic programming instance}
+
+Now we have a feasible solution. However this solution may not be satisfying since there is no constraint on the minimization of the unused space. Since the barrier between optimization and constraint programming is thin (Hooker 2002 \cite{Hooker02}) , we can turn this problem into an optimization problem by setting the objective function  to\,:\\
 \begin{equation}
-f_0(n) = max \sum_{i=1}^{n}{(r_i-l_i)(b_i-t_i)}
+f_0(n) = max \sum_{i=1}^{n}{(w_i)(h_i)}
 \label{eq:objective}
 \end{equation}
-To get rid of the logical constraint in equation (\ref{eq:logical}), we use the method from \href{https://ocw.mit.edu/courses/sloan-school-of-management/15-053-optimization-methods-in-management-science-spring-2013/lecture-notes/MIT15_053S13_lec11.pdf}{this excellent course of the MIT}.\\ 
-We introduce a constant $M$, big enough such that every constraint is satisfied if we put it to the right-hand side of an equality. Then we add binary variables $w_m$, and add to the right handside of the equation either $(1-w_m) M$ or  $w_m(M)$. Thus inequalities in (\ref{eq:logical}) become\,: 
+
+The goal is now to go back to a quadratic programming instance, i.e to write the problem as\,:
+
+\begin{equation}
+\begin{split}
+\text{maximize} \quad& f_0(x) \\
+\text{subject to} \quad& f_i(x) \leq 0 \quad \text{for i = 1,...,m} \\
+&f_j(x) = 0 \quad \text{for j = m + 1, ..., q}
+\end{split}
+\end{equation}
+Where $x$ is a vector of real numbers, $f_0(x)$ is a quadratic function of $x$, $f_i(x)$  and $f_j(x)$ are linear function of $x$. \\
+Our output variables form vector $x$.
+Our objective function is indeed quadratic in $x$, the inequalities in (\ref{eq:fit}) are trivially linear. \\
+We can write the equalities in (\ref{eq:aspect}) as\,:
+
+\begin{equation}
+w_i - R_ih_i = 0 \quad \forall  i \in  \{1, ... n\}
+\label{eq:aspect2}
+\end{equation}
+And that is also trivially linear in $x$.\\
+
+The trouble lies with the logical constraint in equation (\ref{eq:logical}). To get rid of them we use the method from \href{https://ocw.mit.edu/courses/sloan-school-of-management/15-053-optimization-methods-in-management-science-spring-2013/lecture-notes/MIT15_053S13_lec11.pdf}{this excellent course of the MIT}.\\ 
+We introduce a positive constant $M$, big enough such that every constraint is satisfied if we put it to the right-hand side of an equality (W+H for example). Then we add binary variables $v_m$, and add to the right-hand side of the equation either $(1-v_m) M$ or  $v_m(M)$. Thus inequalities in (\ref{eq:logical}) become\,: 
 
 \begin{equation}
 \begin{split}
 &\forall i, j \in \{1,..., n\}, i < j : \\
-&b_j - t_i < w_mM + w_{m+1}M \\
-&b_i - t_j < (1-w_m)M + w_{m+1}M \\
-&r_j - l_i < w_mM + (1-w_{m+1})M \\
-&r_i - l_j < (1-w_m)M + (1-w_{m+1})M\\
+&b_j - t_i < v_mM + v_{m+1}M \\
+&b_i - t_j < (1-v_m)M + v_{m+1}M \\
+&r_j - l_i < v_mM + (1-v_{m+1})M \\
+&r_i - l_j < (1-v_m)M + (1-v_{m+1})M\\
 \end{split}
 \end{equation}
-
-Thus, our problem almost becomes a quadratic programming instance (because of the integer binary variables it is not).
-We can bypass this issue by first assigning the binary variables and then solving the quadratic programming problem using Lagrange multipliers.  %TODO cite Frank, Marguerite and Wolfe, Philip -> bibtex
+With :
+\begin{equation*}
+m = 2 * (j + \sum_{t = 1}^{i}{n+1 -i})
+\end{equation*}
+Fix i and j, whatever the assignment of the variables $v_m$ and $v_{m+1}$ the right hand-side of one in the above four inequalities will be 0 and thus the not overlapping constraint will be met. The other three inequalities will be trivially satisfied. E.g  . $v_m = 0$ and $v_{m+1} = 0$ enforce that window j is above window i. There are two different variables v for each of these relation, hence $n*n+1$ variables v. Let us write v the vector containing all the variable $v_m$. (x,v) is a feasible solution to our new problem only if x is a feasible solution to the previous one. Moreover if x is feasible, then there exists a v such that (x,v) is feasible.\\
+However there exists assignments of v such that our problem is not satisfiable anymore. E.g. window 1 above window 2, window 2 above 3 and window 3 above 1.\\
+Thus, our problem becomes a quadratic programming instance for every assignment of v. We know how to solve them using Lagrange multipliers (Frank et al. 1956 \cite{Frank56}).
 %TODO reminder of big O notation ?
-Complexity explodes since there are $O(n^2)$ variables, so $O(2^{n^2})$ assignments possible. In practice, for Tide, n would rarely exceed 20. Hence brute force may be a viable solution. If computation is slow, assigning randomly those variable and solving the quadratic program may be a better alternative. \\
+Complexity explodes since there are $O(n^2)$ variables, so $O(2^{n^2})$ assignments possible. In practice, for Tide, n would rarely exceed 20. Hence brute force may be a viable solution. If computation is slow, assigning randomly those variable and solving the quadratic program may be a better alternative. It will probably work although many assignments of v lead to unfeasible problems because many other assignments of v will work and will be equivalent in a way. \\
+
+\subsubsection{Minimizing variance in the windows}
 At this point, we are guaranteed to have a satisfying occupancy of the space. But we still have the issue that windows can have close to 0 width. There are two possible workaround : \\
--Add constraints to enforce a min size for the windows; \\%trade of, computationnally expensive bigger constraint
+-Add constraints to enforce a min size for the windows; \\
 -Add a penalizing term to the objective function. \\
 Depending on the min size constraint, the first alternative  may lead to an empty feasible set. Running the algorithm for different values of min size will lead to a satisfiable solution, with an increase in computational cost. \\
 The difficulty in the second alternative is to find a function which penalizes smallest and biggest windows. We suggest to add to the objective function (\ref{eq:objective}) the following term :
 \begin{equation}
 \lambda \sum_{i = 1}^{n}{w_i + h_i}
 \end{equation}
- Where $w_i = r_i - l_i$ and $h_i = t_i - b_i$ and $\lambda$ is a real that must be tuned appropriately. \\
-Our algorithm has improved but is still unsatisfying since there is no guarantee of equilibrium. %TODO think of an example
-Similar input conditions may lead to very different results. Implementation of this algorithm has been put aside to the profit of more heuristic ones, allowing for a greater control over the output.
+ Where $\lambda$ is a real that must be tuned appropriately. Note that this idea derives from the classical regularization of least-square problem (lasso regression) where we try to minimize $||Ax - b||_2 + ||x||_1$\\
+Our algorithm has improved and we think it could be interesting to implement it. However since we first thought it would be hard to reach a satisfiable result in a reasonable amount of time we decided to focus on another algorithm.
 
 
 \section{Heuristic algorithm}
 
 \subsection{Introduction}
 
-Since we convinced ourselves that an optimal solution may be hard to compute, we looked for an algorithm which gave good results in most of the cases without any ``hard" guarantees
+Since we convinced ourselves that an optimal solution may be hard to compute, we looked for an algorithm which gave good results in most of the cases without any ``hard" guarantees.
 
 \subsubsection{Main principles}
 
-. The idea is to construct a rectangle containing all the windows with ratio as close as possible to the available space. We start with an empty tree and add all the windows one by one. Once there is no remaining window, we resize the tree to fit in the available space. For this algorithm to perform well, we need to keep a rootNode whose surface is similar to the available space (meaning their ratio width/height are close). 
+The idea is to construct a rectangle containing all the windows with ratio as close as possible to the available space. We start with an empty tree and add all the windows one by one. Once there is no remaining window, we resize the tree to fit in the available space. For this algorithm to perform well, we need to keep a rootNode whose surface is similar to the available space (meaning their ratio width/height are close). 
 
 Any node in this tree is a rectangle composed of two children which are contiguous. A leaf that contains a window is called ``full" and a leaf that does not contain a window is ``empty".  \\
 %TODO add scheme for horizontal or vertical cuts
@@ -164,7 +208,9 @@ Once the inserting part is done, our tree (or rootNode since it is equivalent) m
 \subsubsection{Initialization choices}
 
 The attentive reader may have noted two unspoken initialization processes which affect the execution of the algorithm. We did not discuss the initial size of the windows and the order in which the algorithm inserts them. \\
-In Default mode of Tide, windows have a default size when they are opened (depending on their content). The choice has been made to use this size as the initial size of the windows. By the way the algorithm works, the relative size of two windows on the focused mode is the same than in Default mode. This is a benefit in most of the cases, where windows in Default mode are already balanced. But it leads to degenerate cases when a window occupies the majority of the screen in Default mode. Such cases can be detected and an initial resizing of the window may occur. An other benefit resulting from this initialization is the control over the algorithm brought to the user. He can decide on Default mode to increase the size of a window and this will impact its size in focused mode. At the moment it is the only control the user has on the display of this algorithm. In the previous focus mode, control offered to the user laid in the order (left from right) of the windows. \\
+In Default mode of Tide, windows have a default size when they are opened (depending on their content). The choice has been made to use this size as the initial size of the windows. By the way the algorithm works, the relative size of two windows on the focused mode is the same than in Default mode. This is a benefit in most of the cases, where windows in Default mode are already balanced. But it leads to degenerate cases when a window occupies the majority of the screen in Default mode. However
+such cases could be detected and we could consider resizing the window before running the algorithm. This feature is actually not implemented. \\
+Another benefit resulting from this initialization is the control over the algorithm brought to the user. He can decide on Default mode to increase the size of a window and this will impact its size in focused mode. At the moment it is the only control the user has on the display of this algorithm. In the previous focus mode, control offered to the user laid in the order (left from right) of the windows. \\
 This is not the case anymore with this algorithm since the order of the windows depends on the maximum of their relative width or relative height compared to the available space. Those ``bigger" windows may indeed prove troublesome if they arrive last since they are more susceptible to change the ratio of the tree. However, in some cases this ordering is far from the best one. We will see a way to deal with this issue.
 
 \subsection{Issues and workarounds in the algorithm}
@@ -235,14 +281,18 @@ Strangely the tolerance factor added seem to decrease the performance with high 
 
 \section{Conclusion and Future work}
 
+We managed to design an algorithm which performs well on most of the cases although the core idea is very simple. Compared to the previous one and also to what an human will do. A few features greatly improved the cases on which the algorithm was less performant. We presented multiple ideas to reduce further the occurences of less satisfying solutions, notably with the change of available space in each subtree insertion phase.
 
+On a different perspective, now that the automatic layout performs well on most of the cases, focus should be put on user-interface features. We would like to give to the user the possibility to move, resize or swap some windows in focus mode without changing the result of the other windows. 
 
-On a different perspective, now that the automatic layout performs well on most of the cases, focus should be put on user-interface features. We would like to give to the user the possibility to move or swap some windows in focus mode without changing the result of the other windows. 
+We showed that we can consider this problem as multiple instances of quadratic programming. It would be interesting to implement an algorithm for this optimization. On one hand it could be more performant than the present heuristic one
+. On the second hand, it would be very easy to add user-driven constraints. E.g. A peculiar window is at the leftmost part of the screen, or is at fixed size.
+\bibliographystyle{unsrt}
+\bibliography{bibTemp}
+
 \begin{acks}
  
 \end{acks}
 
 
-
-
- \end{document}install biblatex
+ \end{document}
